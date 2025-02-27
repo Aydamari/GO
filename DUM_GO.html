@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cálculo de Idade Gestacional e DPP</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input {
+      margin-bottom: 15px;
+      width: 250px;
+      padding: 5px;
+    }
+    button {
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    #resultados {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f5f5f5;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cálculo de Idade Gestacional e DPP</h1>
+  
+  <form>
+    <label for="dum">Data da Última Menstruação (DUM):</label>
+    <input type="date" id="dum" name="dum" />
+
+    <label for="dataReferencia">Data de Referência (opcional):</label>
+    <input type="date" id="dataReferencia" name="dataReferencia" />
+
+    <button type="button" onclick="calcular()">Calcular</button>
+  </form>
+  
+  <div id="resultados"></div>
+
+  <script>
+    function calcular() {
+      const dumInput = document.getElementById('dum').value;
+      const dataReferenciaInput = document.getElementById('dataReferencia').value;
+      const resultadosDiv = document.getElementById('resultados');
+
+      // Verifica se a DUM foi informada
+      if (!dumInput) {
+        resultadosDiv.innerHTML = "<p style='color:red;'>Por favor, informe a DUM.</p>";
+        return;
+      }
+
+      // Converte as datas para objetos Date
+      const dumDate = new Date(dumInput);
+
+      // Se data de referência não for fornecida, usa a data de hoje
+      let refDate;
+      if (dataReferenciaInput) {
+        refDate = new Date(dataReferenciaInput);
+      } else {
+        refDate = new Date(); // Data atual
+      }
+
+      // Cálculo da Idade Gestacional em dias
+      // (diferença entre refDate e DUM)
+      const diffEmMilissegundos = refDate - dumDate;
+      const diffEmDias = Math.floor(diffEmMilissegundos / (1000 * 60 * 60 * 24));
+
+      if (diffEmDias < 0) {
+        resultadosDiv.innerHTML = "<p style='color:red;'>A data de referência é anterior à DUM. Verifique os valores.</p>";
+        return;
+      }
+
+      // Converte dias em semanas
+      const idadeGestSemanas = diffEmDias / 7;
+      const semanas = Math.floor(idadeGestSemanas);
+      const diasRestantes = Math.floor((idadeGestSemanas - semanas) * 7);
+
+      // Cálculo da Data Provável do Parto (DPP) = DUM + 280 dias
+      const dppDate = new Date(dumDate);
+      dppDate.setDate(dppDate.getDate() + 280); // 40 semanas = 280 dias
+
+      // Formatando DPP para exibição
+      const dia = String(dppDate.getDate()).padStart(2, '0');
+      const mes = String(dppDate.getMonth() + 1).padStart(2, '0'); 
+      const ano = dppDate.getFullYear();
+      const dppFormatada = `${dia}/${mes}/${ano}`;
+
+      // Monta resultado
+      let resultadoHTML = `
+        <p><strong>Idade Gestacional (na data de referência):</strong> ${semanas} semanas e ${diasRestantes} dias</p>
+        <p><strong>Data Provável do Parto (DPP):</strong> ${dppFormatada}</p>
+      `;
+
+      // Opcionalmente, sinaliza a data de referência utilizada
+      resultadoHTML += dataReferenciaInput 
+        ? `<p>Data de referência utilizada: ${new Date(dataReferenciaInput).toLocaleDateString('pt-BR')}</p>`
+        : `<p>Data de referência utilizada: Hoje (${refDate.toLocaleDateString('pt-BR')})</p>`;
+
+      resultadosDiv.innerHTML = resultadoHTML;
+    }
+  </script>
+</body>
+</html>
+
