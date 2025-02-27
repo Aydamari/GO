@@ -8,18 +8,22 @@
       font-family: Arial, sans-serif;
       margin: 20px;
     }
-    label {
-      display: block;
+    label, p {
       margin-bottom: 5px;
     }
     input {
-      margin-bottom: 15px;
-      width: 250px;
+      margin-bottom: 10px;
       padding: 5px;
+      width: 200px;
     }
     button {
       padding: 8px 16px;
+      margin-right: 10px;
       cursor: pointer;
+    }
+    #consultasContainer input {
+      display: block;
+      margin-bottom: 5px;
     }
     #resultados {
       margin-top: 20px;
@@ -27,85 +31,190 @@
       background-color: #f5f5f5;
       border: 1px solid #ccc;
     }
+    .consulta-result {
+      border-bottom: 1px solid #ccc;
+      padding: 5px 0;
+    }
+    .consulta-result:last-child {
+      border-bottom: none;
+    }
   </style>
 </head>
 <body>
   <h1>Cálculo de Idade Gestacional e DPP</h1>
   
-  <form>
-    <label for="dum">Data da Última Menstruação (DUM):</label>
-    <input type="date" id="dum" name="dum" />
+  <!-- Campo para DUM (dd-mm-aaaa) -->
+  <label for="dum">Data da Última Menstruação (DUM) - Formato (dd-mm-aaaa):</label><br />
+  <input type="text" id="dum" placeholder="dd-mm-aaaa" />
 
-    <label for="dataReferencia">Data de Referência (opcional):</label>
-    <input type="date" id="dataReferencia" name="dataReferencia" />
+  <!-- Botão para adicionar datas de consultas anteriores -->
+  <p>
+    <button type="button" onclick="adicionarConsulta()">Adicionar data de consulta anterior</button>
+  </p>
 
+  <!-- Container onde serão adicionados os campos de data de consultas anteriores -->
+  <div id="consultasContainer"></div>
+
+  <!-- Botão para calcular -->
+  <p>
     <button type="button" onclick="calcular()">Calcular</button>
-  </form>
-  
+  </p>
+
+  <!-- Área de resultados -->
   <div id="resultados"></div>
 
   <script>
+    /**
+     * Função para converter string "dd-mm-aaaa" em um objeto Date do JavaScript.
+     * Caso encontre alguma inconsistência (ex: formato errado), retorna null.
+     */
+    function parseDataDDMMAAAA(dataStr) {
+      if (!dataStr) return null;
+      const partes = dataStr.split('-');
+      if (partes.length !== 3) return null;
+
+      const [diaStr, mesStr, anoStr] = partes;
+      const dia = parseInt(diaStr, 10);
+      const mes = parseInt(mesStr, 10);
+      const ano = parseInt(anoStr, 10);
+
+      // Verifica se são números válidos
+      if (isNaN(dia) || isNaN(mes) || isNaN(ano)) return null;
+
+      // O mês no JS vai de 0 a 11
+      // new Date(ano, mes-1, dia) lida com variações de mês/dia, inclusive bissextos
+      const data = new Date(ano, mes - 1, dia);
+
+      // Checa se a data criada bate com os valores inseridos (evita datas como 31-02-2024)
+      if (
+        data.getDate() !== dia ||
+        data.getMonth() !== (mes - 1) ||
+        data.getFullYear() !== ano
+      ) {
+        return null;
+      }
+
+      return data;
+    }
+
+    /**
+     * Adiciona um novo campo para inserir data de consulta anterior.
+     */
+    function adicionarConsulta() {
+      const container = document.getElementById('consultasContainer');
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'dd-mm-aaaa';
+
+      container.appendChild(input);
+    }
+
+    /**
+     * Função principal de cálculo.
+     * Para cada data de consulta (incluso a data atual, se não houver data de consulta? 
+     * Neste exemplo, só calculamos para as datas de consulta adicionadas).
+     */
     function calcular() {
-      const dumInput = document.getElementById('dum').value;
-      const dataReferenciaInput = document.getElementById('dataReferencia').value;
       const resultadosDiv = document.getElementById('resultados');
+      resultadosDiv.innerHTML = ''; // Limpa resultados anteriores
 
-      // Verifica se a DUM foi informada
-      if (!dumInput) {
-        resultadosDiv.innerHTML = "<p style='color:red;'>Por favor, informe a DUM.</p>";
+      // Lê a DUM
+      const dumStr = document.getElementById('dum').value;
+      const dumDate = parseDataDDMMAAAA(dumStr);
+
+      // Verifica se a DUM é válida
+      if (!dumDate) {
+        resultadosDiv.innerHTML = "<p style='color:red;'>Por favor, informe a DUM corretamente (dd-mm-aaaa).</p>";
         return;
       }
 
-      // Converte as datas para objetos Date
-      const dumDate = new Date(dumInput);
-
-      // Se data de referência não for fornecida, usa a data de hoje
-      let refDate;
-      if (dataReferenciaInput) {
-        refDate = new Date(dataReferenciaInput);
-      } else {
-        refDate = new Date(); // Data atual
-      }
-
-      // Cálculo da Idade Gestacional em dias
-      // (diferença entre refDate e DUM)
-      const diffEmMilissegundos = refDate - dumDate;
-      const diffEmDias = Math.floor(diffEmMilissegundos / (1000 * 60 * 60 * 24));
-
-      if (diffEmDias < 0) {
-        resultadosDiv.innerHTML = "<p style='color:red;'>A data de referência é anterior à DUM. Verifique os valores.</p>";
-        return;
-      }
-
-      // Converte dias em semanas
-      const idadeGestSemanas = diffEmDias / 7;
-      const semanas = Math.floor(idadeGestSemanas);
-      const diasRestantes = Math.floor((idadeGestSemanas - semanas) * 7);
-
-      // Cálculo da Data Provável do Parto (DPP) = DUM + 280 dias
+      // Calcula a DPP (somando 280 dias, aproximadamente 40 semanas)
+      // Este método considera corretamente meses de 28, 29, 30 ou 31 dias, pois a Date() faz o ajuste automático.
       const dppDate = new Date(dumDate);
-      dppDate.setDate(dppDate.getDate() + 280); // 40 semanas = 280 dias
+      dppDate.setDate(dppDate.getDate() + 280); 
 
-      // Formatando DPP para exibição
-      const dia = String(dppDate.getDate()).padStart(2, '0');
-      const mes = String(dppDate.getMonth() + 1).padStart(2, '0'); 
-      const ano = dppDate.getFullYear();
-      const dppFormatada = `${dia}/${mes}/${ano}`;
+      // Formata a DPP
+      const dppFormatada = formatarData(dppDate);
 
-      // Monta resultado
-      let resultadoHTML = `
-        <p><strong>Idade Gestacional (na data de referência):</strong> ${semanas} semanas e ${diasRestantes} dias</p>
-        <p><strong>Data Provável do Parto (DPP):</strong> ${dppFormatada}</p>
-      `;
+      // Monta a mensagem inicial com a DPP
+      let mensagem = `<p><strong>Data Provável do Parto (DPP):</strong> ${dppFormatada}</p>`;
+      
+      // Para cada data de consulta adicionada, calculamos a IG
+      const consultasContainer = document.getElementById('consultasContainer');
+      const inputsConsulta = consultasContainer.querySelectorAll('input');
 
-      // Opcionalmente, sinaliza a data de referência utilizada
-      resultadoHTML += dataReferenciaInput 
-        ? `<p>Data de referência utilizada: ${new Date(dataReferenciaInput).toLocaleDateString('pt-BR')}</p>`
-        : `<p>Data de referência utilizada: Hoje (${refDate.toLocaleDateString('pt-BR')})</p>`;
+      // Caso não tenha nenhuma data de consulta anterior adicionada,
+      // podemos (opcionalmente) calcular com a data atual ou apenas avisar.
+      if (inputsConsulta.length === 0) {
+        mensagem += `<p style="color:red;">Nenhuma data de consulta anterior foi adicionada.</p>`;
+        resultadosDiv.innerHTML = mensagem;
+        return;
+      }
 
-      resultadosDiv.innerHTML = resultadoHTML;
+      let resultadosConsultas = '';
+
+      inputsConsulta.forEach((input, index) => {
+        const consultaStr = input.value.trim();
+        if (!consultaStr) {
+          resultadosConsultas += `
+            <div class="consulta-result" style="color:red;">
+              <p>Consulta ${index + 1}: data inválida ou não preenchida.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const consultaDate = parseDataDDMMAAAA(consultaStr);
+        if (!consultaDate) {
+          resultadosConsultas += `
+            <div class="consulta-result" style="color:red;">
+              <p>Consulta ${index + 1}: data "${consultaStr}" está em formato inválido.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Calcula IG em dias
+        const diffEmMilissegundos = consultaDate - dumDate;
+        const diffEmDias = Math.floor(diffEmMilissegundos / (1000 * 60 * 60 * 24));
+
+        // Se diffEmDias < 0, significa que a data da consulta é anterior à DUM
+        if (diffEmDias < 0) {
+          resultadosConsultas += `
+            <div class="consulta-result" style="color:red;">
+              <p>Consulta ${index + 1} (${formatarData(consultaDate)}): 
+              não é possível ter consulta antes da DUM.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Converte dias em semanas e dias
+        const idadeGestSemanas = diffEmDias / 7;
+        const semanas = Math.floor(idadeGestSemanas);
+        const diasRestantes = Math.floor((idadeGestSemanas - semanas) * 7);
+
+        resultadosConsultas += `
+          <div class="consulta-result">
+            <p><strong>Consulta ${index + 1}:</strong> ${formatarData(consultaDate)}</p>
+            <p>IG: ${semanas} semanas e ${diasRestantes} dias</p>
+          </div>
+        `;
+      });
+
+      resultadosDiv.innerHTML = mensagem + resultadosConsultas;
+    }
+
+    /**
+     * Função para formatar data em dd/mm/aaaa (para exibição).
+     */
+    function formatarData(data) {
+      const dia = String(data.getDate()).padStart(2, '0');
+      const mes = String(data.getMonth() + 1).padStart(2, '0');
+      const ano = data.getFullYear();
+      return `${dia}/${mes}/${ano}`;
     }
   </script>
 </body>
 </html>
-
